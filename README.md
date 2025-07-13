@@ -24,6 +24,7 @@ That's it! 🎉 The package will automatically:
 - 🖥️ **Desktop Notifications** - Visual notifications with Claude Code branding
 - 🪝 **Auto-Integration** - Automatically configures Claude Code hooks
 - ⚡ **Zero Configuration** - Works out of the box
+-  webhook **Webhook Support** - Trigger a webhook in addition to or instead of the sound
 - 🎨 **Customizable** - Easy to modify sounds and settings
 
 ## Usage
@@ -107,6 +108,40 @@ ls ~/.local/share/sounds/claude-notification.wav
 
 # Replace with your own
 cp your-custom-sound.wav ~/.local/share/sounds/claude-notification.wav
+```
+
+### Configure Webhooks
+
+You can configure a webhook to be triggered when a notification occurs. This is useful for integrating with other services, such as IFTTT, Zapier, or a custom server.
+
+Create a configuration file at `~/.config/claude-notifications/settings.json`.
+
+**Example `settings.json`:**
+
+```json
+{
+  "sound": true,
+  "webhook": {
+    "enabled": true,
+    "url": "https://maker.ifttt.com/trigger/claude_notification/with/key/YOUR_KEY",
+    "replaceSound": false
+  }
+}
+```
+
+**Configuration Options:**
+
+- `sound`: (boolean) Whether to play the notification sound. Defaults to `true`.
+- `webhook.enabled`: (boolean) Whether to trigger the webhook. Defaults to `false`.
+- `webhook.url`: (string) The URL to send the POST request to.
+- `webhook.replaceSound`: (boolean) If `true`, the sound will not play when a webhook is triggered. Defaults to `false`.
+
+The webhook will be sent as a `POST` request with a JSON payload:
+
+```json
+{
+  "message": "Claude is waiting for you..."
+}
 ```
 
 ### Create Custom Patterns

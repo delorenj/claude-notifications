@@ -1,59 +1,86 @@
 #!/usr/bin/env node
 
-const { execSync, spawn } = require('child_process');
+const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const http = require('http');
+const https = require('https');
+const { getConfig } = require('../lib/config');
+
+const config = getConfig();
 
 function playSound() {
+  if (!config.sound) {
+    return;
+  }
+
   const soundFile = path.join(os.homedir(), '.local', 'share', 'sounds', 'claude-notification.wav');
   
   if (!fs.existsSync(soundFile)) {
-    // Fallback to system bell
     process.stdout.write('\x07');
     return;
   }
 
   try {
-    // Try different audio players based on platform
     if (process.platform === 'linux') {
-      // Try paplay first (PulseAudio)
       try {
         execSync(`paplay "${soundFile}"`, { stdio: 'ignore' });
-        return;
       } catch (e) {
-        // Try aplay (ALSA)
         try {
           execSync(`aplay "${soundFile}"`, { stdio: 'ignore' });
-          return;
         } catch (e2) {
-          // Try play (sox)
           try {
             execSync(`play "${soundFile}"`, { stdio: 'ignore' });
-            return;
           } catch (e3) {
-            // Fallback to system bell
             process.stdout.write('\x07');
           }
         }
       }
     } else if (process.platform === 'darwin') {
-      // macOS
       try {
         execSync(`afplay "${soundFile}"`, { stdio: 'ignore' });
-        return;
       } catch (e) {
-        // Fallback to system bell
         process.stdout.write('\x07');
       }
     } else {
-      // Other platforms - just system bell
       process.stdout.write('\x07');
     }
   } catch (error) {
-    // Final fallback
     process.stdout.write('\x07');
   }
+}
+
+function triggerWebhook() {
+  if (!config.webhook || !config.webhook.enabled || !config.webhook.url) {
+    return;
+  }
+
+  const { url } = config.webhook;
+  const data = JSON.stringify({ message: 'Claude is waiting for you...' });
+
+  const protocol = url.startsWith('https') ? https : http;
+
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': data.length
+    }
+  };
+
+  const req = protocol.request(url, options, (res) => {
+    // We don't really care about the response, but it's good practice to handle it
+    res.on('data', () => {});
+    res.on('end', () => {});
+  });
+
+  req.on('error', (error) => {
+    console.error('Error triggering webhook:', error);
+  });
+
+  req.write(data);
+  req.end();
 }
 
 function showNotification() {
@@ -62,17 +89,22 @@ function showNotification() {
   notifier.notify({
     title: 'Claude Code',
     message: 'Waiting for you...',
-    icon: path.join(os.homedir(), 'Pictures', 'claude.png'), // Will fallback gracefully if not found
-    sound: false, // We handle sound separately
+    icon: path.join(os.homedir(), 'Pictures', 'claude.png'),
+    sound: false,
     urgency: 'critical'
   });
 }
 
 function main() {
-  // Play sound in background
-  playSound();
+  if (config.webhook.enabled) {
+    triggerWebhook();
+    if (!config.webhook.replaceSound) {
+      playSound();
+    }
+  } else {
+    playSound();
+  }
   
-  // Show desktop notification
   showNotification();
 }
 
