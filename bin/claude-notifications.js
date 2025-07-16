@@ -146,15 +146,7 @@ function createSoundFile() {
     "synth 0.12 sine 1174.66 fade 0.01 0.12 0.01 : " +
     "synth 0.12 sine 1318.51 fade 0.01 0.12 0.01 : " +
     "synth 0.12 sine 1567.98 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 2093.00 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 1567.98 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 1318.51 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 1174.66 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 1046.50 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 783.99 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 659.25 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 587.33 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 523.25 fade 0.01 0.12 0.01 " +
+    "synth 0.12 sine 2093.00 fade 0.01 0.12 0.01 " +
     "vol 0.7";
 
   try {

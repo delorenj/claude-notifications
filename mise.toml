@@ -1,0 +1,3 @@
+[tasks.play-sound]
+description = "Play the Claude notification sound"
+run = "node bin/claude-notify.js"

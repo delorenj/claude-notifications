@@ -103,9 +103,8 @@ function main() {
     }
   } else {
     playSound();
+    showNotification();
   }
-  
-  showNotification();
 }
 
 if (require.main === module) {
