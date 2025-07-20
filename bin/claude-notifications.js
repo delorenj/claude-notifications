@@ -136,25 +136,73 @@ function createSoundFile() {
   // Generate pleasant notification scale
   log("blue", "🎼 Generating a pleasant notification scale...");
 
-  const soxCommand =
-    `sox -n "${soundFile}" ` +
-    "synth 0.12 sine 523.25 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 587.33 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 659.25 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 783.99 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 1046.50 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 1174.66 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 1318.51 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 1567.98 fade 0.01 0.12 0.01 : " +
-    "synth 0.12 sine 2093.00 fade 0.01 0.12 0.01 " +
-    "vol 0.7";
+  // Create individual note files first (safer approach)
+  const tempDir = path.join(os.tmpdir(), "claude-notifications");
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+
+  const notes = [
+    { freq: 523.25, name: "C5" }, // C5
+    { freq: 587.33, name: "D5" }, // D5
+    { freq: 659.25, name: "E5" }, // E5
+    { freq: 783.99, name: "G5" }, // G5
+    { freq: 1046.5, name: "C6" }, // C6
+    { freq: 1174.66, name: "D6" }, // D6
+    { freq: 1318.51, name: "E6" }, // E6
+    { freq: 1567.98, name: "G6" }, // G6
+    { freq: 2093.0, name: "C7" }, // C7
+  ];
 
   try {
-    execSync(soxCommand, { stdio: "ignore" });
+    const noteFiles = [];
+
+    // Generate each note individually (much safer)
+    for (let i = 0; i < notes.length; i++) {
+      const noteFile = path.join(tempDir, `note_${i}.wav`);
+      const noteCommand = `sox -n "${noteFile}" synth 0.08 sine ${notes[i].freq} fade 0.01 0.08 0.01 vol 0.7`;
+      execSync(noteCommand, { stdio: "ignore", timeout: 5000 }); // 5 second timeout per note
+      noteFiles.push(noteFile);
+    }
+
+    // Concatenate all notes into final file
+    const concatCommand = `sox ${noteFiles.map((f) => `"${f}"`).join(" ")} "${soundFile}"`;
+    execSync(concatCommand, { stdio: "ignore", timeout: 10000 }); // 10 second timeout for concat
+
+    // Clean up temp files
+    noteFiles.forEach((file) => {
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
+    });
+
+    // Remove temp directory if empty
+    try {
+      fs.rmdirSync(tempDir);
+    } catch (e) {
+      // Directory might not be empty, that's ok
+    }
+
     log("green", "✅ Sound file created successfully!");
     return true;
   } catch (error) {
     log("red", `❌ Error creating sound file: ${error.message}`);
+
+    // Clean up any temp files on error
+    try {
+      const tempFiles = fs
+        .readdirSync(tempDir)
+        .filter((f) => f.startsWith("note_"));
+      tempFiles.forEach((file) => {
+        const filePath = path.join(tempDir, file);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
+
     return false;
   }
 }
