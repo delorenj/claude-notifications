@@ -91,7 +91,9 @@ function showNotification() {
     message: 'Waiting for you...',
     icon: path.join(os.homedir(), 'Pictures', 'claude.png'),
     sound: false,
-    urgency: 'critical'
+    urgency: 'critical',
+    id: 'claude-code-notification',
+    replaceId: 'claude-code-notification'
   });
 }
 
