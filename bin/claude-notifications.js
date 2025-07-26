@@ -4,6 +4,7 @@ const { execSync, spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { ensureSoundsDirectory, getSoundPath, SOUND_TYPES, soundsDir } = require("../lib/config");
 
 const colors = {
   red: "\x1b[31m",
@@ -106,13 +107,8 @@ function updateClaudeCodeConfig() {
 }
 
 function createSoundFile() {
-  const soundDir = path.join(os.homedir(), ".local", "share", "sounds");
-  const soundFile = path.join(soundDir, "claude-notification.wav");
-
-  // Create directory if it doesn't exist
-  if (!fs.existsSync(soundDir)) {
-    fs.mkdirSync(soundDir, { recursive: true });
-  }
+  ensureSoundsDirectory();
+  const soundFile = getSoundPath(SOUND_TYPES.HARP);
 
   // Check if sox is available
   try {
@@ -207,6 +203,79 @@ function createSoundFile() {
   }
 }
 
+function generateBellSoxCommand(outputFile) {
+  // Bell sound parameters - adjust these to customize the bell
+  const bellParams = {
+    // Base tone generation
+    duration: 0.1, // Length of the initial bell strike (seconds)
+    frequency: 1600, // Pitch of the bell (Hz) - higher = more "ting", lower = more "dong"
+
+    // Fade envelope
+    fadeIn: 0, // Fade in time (seconds) - 0 for immediate attack
+    fadeDuration: 0.1, // Total fade duration (seconds)
+    fadeOut: 0.05, // Fade out time (seconds) - creates the bell decay
+
+    // Volume
+    volume: 0.9, // Master volume (0.0 to 1.0)
+
+    // Echo effect parameters (creates the "ringing" quality)
+    echoGain: 0.5, // Overall echo volume (0.0 to 1.0)
+    echoDecay: 0.5, // How quickly echoes fade (0.0 to 1.0)
+
+    // Individual echo delays and volumes (milliseconds, volume)
+    echo1: { delay: 250, volume: 0.2 }, // First echo - quarter second delay
+    echo2: { delay: 500, volume: 0.05 }, // Second echo - half second delay
+    echo3: { delay: 750, volume: 0.01 }, // Third echo - three quarter second delay
+
+    // Reverb parameters (adds spatial depth)
+    reverb: {
+      roomSize: 40, // Room size percentage (0-100) - larger = more spacious
+      preDelay: 65, // Pre-delay in ms - time before reverb starts
+      reverbTime: 100, // Reverb decay time percentage (0-100)
+      wetGain: 100, // Wet signal gain percentage (0-100) - reverb volume
+      dryGain: 12, // Dry signal gain percentage (0-100) - original signal volume
+      stereoDepth: 0, // Stereo depth (0-100) - 0 = mono, higher = wider stereo
+    },
+  };
+
+  // Build the sox command with clear parameter mapping
+  const command = [
+    "sox -n", // Generate from nothing (null input)
+    `"${outputFile}"`, // Output file
+    `synth ${bellParams.duration} sine ${bellParams.frequency}`, // Generate sine wave
+    `fade ${bellParams.fadeIn} ${bellParams.fadeDuration} ${bellParams.fadeOut}`, // Apply fade envelope
+    `vol ${bellParams.volume}`, // Set volume
+    `echos ${bellParams.echoGain} ${bellParams.echoDecay}`, // Echo effect base settings
+    `${bellParams.echo1.delay} ${bellParams.echo1.volume}`, // Echo 1: 250ms delay, 0.2 volume
+    `${bellParams.echo2.delay} ${bellParams.echo2.volume}`, // Echo 2: 500ms delay, 0.1 volume
+    `${bellParams.echo3.delay} ${bellParams.echo3.volume}`, // Echo 3: 750ms delay, 0.05 volume
+    `reverb ${bellParams.reverb.roomSize} ${bellParams.reverb.preDelay}`, // Reverb room & pre-delay
+    `${bellParams.reverb.reverbTime} ${bellParams.reverb.wetGain}`, // Reverb time & wet gain
+    `${bellParams.reverb.dryGain} ${bellParams.reverb.stereoDepth}`, // Dry gain & stereo depth
+  ].join(" ");
+
+  return command;
+}
+
+function createBellSoundFile() {
+  ensureSoundsDirectory();
+  const soundFile = getSoundPath(SOUND_TYPES.BELL);
+
+  log("blue", "🔔 Generating service desk bell sound...");
+
+  try {
+    // Generate the bell sound using our documented sox command builder
+    const bellCommand = generateBellSoxCommand(soundFile);
+    execSync(bellCommand, { stdio: "ignore", timeout: 5000 });
+
+    log("green", "✅ Bell sound file created successfully!");
+    return true;
+  } catch (error) {
+    log("red", `❌ Error creating bell sound file: ${error.message}`);
+    return false;
+  }
+}
+
 function main() {
   const command = process.argv[2];
 
@@ -215,7 +284,7 @@ function main() {
     case undefined:
       log("blue", "🎵 Installing Claude Notifications...");
 
-      if (createSoundFile()) {
+      if (createSoundFile() && createBellSoundFile()) {
         updateClaudeCodeConfig();
         log("green", "🎉 Installation complete!");
         log("blue", "🧪 Testing notification...");
@@ -256,20 +325,35 @@ function main() {
       });
       break;
 
+    case "test-bell":
+      log("blue", "🔔 Testing bell notification...");
+      spawn("node", [path.join(__dirname, "claude-notify.js"), "--bell"], {
+        stdio: "inherit",
+      });
+      break;
+
     case "uninstall":
       log("blue", "🗑️  Uninstalling Claude Notifications...");
 
-      const soundFile = path.join(
-        os.homedir(),
-        ".local",
-        "share",
-        "sounds",
-        "claude-notification.wav",
-      );
-      if (fs.existsSync(soundFile)) {
-        fs.unlinkSync(soundFile);
-        log("green", "✅ Removed sound file");
+      // Remove sounds directory
+      if (fs.existsSync(soundsDir)) {
+        fs.rmSync(soundsDir, { recursive: true, force: true });
+        log("green", "✅ Removed sounds directory");
       }
+
+      // Also clean up old sound files if they exist
+      const oldSoundDir = path.join(os.homedir(), ".local", "share", "sounds");
+      const oldSoundFiles = [
+        path.join(oldSoundDir, "claude-notification.wav"),
+        path.join(oldSoundDir, "claude-notification-bell.wav")
+      ];
+      
+      oldSoundFiles.forEach(file => {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+          log("green", `✅ Removed old sound file: ${path.basename(file)}`);
+        }
+      });
 
       log(
         "yellow",
@@ -289,6 +373,7 @@ function main() {
       console.log("Commands:");
       console.log("  install    Install notifications (default)");
       console.log("  test       Test the notification");
+      console.log("  test-bell  Test the bell notification");
       console.log("  uninstall  Remove notifications");
       console.log("  help       Show this help");
       break;

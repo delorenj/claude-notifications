@@ -20,8 +20,9 @@ That's it! 🎉 The package will automatically:
 ## Features
 
 - 🎵 **Final Fantasy Dream Harp** - Classic C-D-E-G ascending/(optional)descending pattern
+- 🔔 **Service Desk Bell** - Optional short, crisp bell sound for a quick "done!" signal
 - 🔊 **Cross-Platform Audio** - Works on Linux and macOS
-- 🖥️ **Desktop Notifications** - Visual notifications with Claude Code branding
+- 🖥️ **Desktop Notifications** - Visual notifications with Claude Code branding (optional)
 - 🪝 **Auto-Integration** - Automatically configures Claude Code hooks
 - ⚡ **Zero Configuration** - Works out of the box
 -  webhook **Webhook Support** - Trigger a webhook in addition to or instead of the sound
@@ -37,8 +38,14 @@ After installation, Claude Code will begin notifying you when it finishes or is 
 # Trigger notification manually
 claude-notify
 
+# Trigger bell notification manually
+claude-notify --bell
+
 # Test the system
 claude-notifications test
+
+# Test the bell sound
+claude-notifications test-bell
 
 # Reinstall/repair
 claude-notifications install
@@ -121,6 +128,8 @@ Create a configuration file at `~/.config/claude-notifications/settings.json`.
 ```json
 {
   "sound": true,
+  "soundType": "claude-notification",
+  "desktopNotification": false,
   "webhook": {
     "enabled": true,
     "url": "https://maker.ifttt.com/trigger/claude_notification/with/key/YOUR_KEY",
@@ -131,7 +140,11 @@ Create a configuration file at `~/.config/claude-notifications/settings.json`.
 
 **Configuration Options:**
 
-- `sound`: (boolean) Whether to play the notification sound. Defaults to `true`.
+- `sound`: (boolean) Whether to play notification sounds. Defaults to `true`.
+- `soundType`: (string) Which sound to play. Available options:
+  - `"claude-notification"` - Final Fantasy dream harp (default)
+  - `"claude-notification-bell"` - Service desk bell
+- `desktopNotification`: (boolean) Whether to show desktop notification banners. Defaults to `false`.
 - `webhook.enabled`: (boolean) Whether to trigger the webhook. Defaults to `false`.
 - `webhook.url`: (string) The URL to send the POST request to.
 - `webhook.replaceSound`: (boolean) If `true`, the sound will not play when a webhook is triggered. Defaults to `false`.
@@ -143,6 +156,10 @@ The webhook will be sent as a `POST` request with a JSON payload:
   "message": "Claude is waiting for you..."
 }
 ```
+
+### Sound Files
+
+Sound files are stored in `~/.config/claude-notifications/sounds/` and can be customized by replacing the `.wav` files in that directory.
 
 ### Create Custom Patterns
 
