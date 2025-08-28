@@ -135,8 +135,13 @@ function createSoundFile() {
 
   // Create individual note files first (safer approach)
   const tempDir = path.join(os.tmpdir(), "claude-notifications");
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
+  try {
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+  } catch (error) {
+    log("red", `❌ Cannot create temp directory: ${error.message}`);
+    return false;
   }
 
   const notes = [
@@ -286,38 +291,55 @@ function main() {
     case undefined:
       log("blue", "🎵 Installing Claude Notifications...");
 
-      if (createSoundFile() && createBellSoundFile()) {
-        updateClaudeCodeConfig();
-        log("green", "🎉 Installation complete!");
-        log("blue", "🧪 Testing notification...");
+      const soundCreated = createSoundFile();
+      const bellCreated = createBellSoundFile();
+      
+      if (soundCreated && bellCreated) {
+        log("green", "✅ Sound files created successfully!");
+      } else if (soundCreated || bellCreated) {
+        log("yellow", "⚠️  Some sound files failed to create, but installation can continue");
+      } else {
+        log("red", "❌ Failed to create sound files. Please check if sox is installed and try again.");
+        process.exit(1);
+      }
+      
+      // Always try to update Claude Code config, but don't fail if it's not found
+      updateClaudeCodeConfig();
+      
+      log("green", "🎉 Installation complete!");
+      log("blue", "🧪 Testing notification...");
 
-        // Test the notification
-        const testProcess = spawn(
-          "node",
-          [path.join(__dirname, "claude-notify.js")],
-          {
-            stdio: "inherit",
-          },
-        );
+      // Test the notification
+      const testProcess = spawn(
+        "node",
+        [path.join(__dirname, "claude-notify.js")],
+        {
+          stdio: "inherit",
+        },
+      );
 
-        testProcess.on("close", () => {
+      testProcess.on("close", (code) => {
+        if (code === 0) {
           log(
             "green",
-            "✅ Test complete! You should have heard a dreamy notification!",
+            "✅ Test complete! You should have heard a delightful notification!",
           );
-          console.log("");
-          log("blue", "Usage:");
-          console.log(
-            "  claude-notify          # Trigger notification manually",
-          );
-          console.log("  claude-notifications   # This installer");
-          console.log("");
-          log(
-            "blue",
-            "Claude Code will now beckon you back with a pleasant notification when it finishes responses or is waiting for your input! 🎮",
-          );
-        });
-      }
+        } else {
+          log("yellow", "⚠️  Test notification had issues, but installation completed");
+        }
+        console.log("");
+        log("blue", "Usage:");
+        console.log(
+          "  claude-notify              # Trigger notification manually",
+        );
+        console.log("  claude-notify --bell       # Trigger bell notification");
+        console.log("  claude-notifications test   # Test the notifications");
+        console.log("");
+        log(
+          "blue",
+          "Claude Code will now beckon you back with pleasant notifications! 🎮",
+        );
+      });
       break;
 
     case "test":
