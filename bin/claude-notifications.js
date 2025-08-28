@@ -4,7 +4,7 @@ const { execSync, spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
-const { ensureSoundsDirectory, getSoundPath, SOUND_TYPES, soundsDir } = require("../lib/config");
+const { ensureConfigDirectory, ensureSoundsDirectory, getSoundPath, SOUND_TYPES, soundsDir } = require("../lib/config");
 
 const colors = {
   red: "\x1b[31m",
@@ -107,6 +107,7 @@ function updateClaudeCodeConfig() {
 }
 
 function createSoundFile() {
+  ensureConfigDirectory();
   ensureSoundsDirectory();
   const soundFile = getSoundPath(SOUND_TYPES.HARP);
 
@@ -258,6 +259,7 @@ function generateBellSoxCommand(outputFile) {
 }
 
 function createBellSoundFile() {
+  ensureConfigDirectory();
   ensureSoundsDirectory();
   const soundFile = getSoundPath(SOUND_TYPES.BELL);
 
