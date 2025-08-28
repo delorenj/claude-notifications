@@ -341,19 +341,9 @@ function main() {
         log("green", "✅ Removed sounds directory");
       }
 
-      // Also clean up old sound files if they exist
-      const oldSoundDir = path.join(os.homedir(), ".local", "share", "sounds");
-      const oldSoundFiles = [
-        path.join(oldSoundDir, "claude-notification.wav"),
-        path.join(oldSoundDir, "claude-notification-bell.wav")
-      ];
-      
-      oldSoundFiles.forEach(file => {
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-          log("green", `✅ Removed old sound file: ${path.basename(file)}`);
-        }
-      });
+      // Clean up old sound files from legacy location
+      const { cleanupLegacySoundFiles } = require("../lib/config");
+      cleanupLegacySoundFiles();
 
       log(
         "yellow",
