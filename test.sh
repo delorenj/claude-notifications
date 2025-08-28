@@ -15,6 +15,6 @@ if command -v claude-notify &> /dev/null; then
     echo "✅ Test complete! Did you hear the Final Fantasy fanfare?"
 else
     echo "❌ claude-notify command not found"
-    echo "💡 Try running ./install.sh first"
+    echo "💡 Try running 'npm install -g @delorenj/claude-notifications' or 'claude-notifications install' first"
     exit 1
 fi
