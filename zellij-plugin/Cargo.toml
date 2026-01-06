@@ -1,0 +1,41 @@
+[package]
+name = "zellij-visual-notifications"
+version = "1.0.0"
+edition = "2021"
+authors = ["Jarad DeLorenzo"]
+description = "Visual notifications plugin for Zellij - border colors, badges, and animations for claude-notifications"
+license = "MIT"
+repository = "https://github.com/delorenj/claude-notifications"
+keywords = ["zellij", "plugin", "notifications", "terminal", "wasm"]
+categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Zellij Plugin SDK
+zellij-tile = "0.40"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# KDL Configuration parsing
+kdl = "4.6"
+
+# Time handling (WASM compatible)
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+
+# Logging
+log = "0.4"
+
+[profile.release]
+opt-level = "z"        # Optimize for size
+lto = true             # Link-time optimization
+codegen-units = 1      # Single codegen unit for better optimization
+strip = true           # Strip symbols
+panic = "abort"        # Smaller panic handler
+
+[profile.dev]
+opt-level = 0
+debug = true

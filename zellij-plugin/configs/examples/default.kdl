@@ -1,0 +1,34 @@
+// Default configuration for Zellij Visual Notifications
+// Copy this file to ~/.config/zellij/config.kdl and customize
+
+plugins {
+    visual-notifications location="file:~/.config/zellij/plugins/zellij-visual-notifications.wasm" {
+        // Enable/disable the plugin
+        enabled true
+
+        // Theme preset (see README for available themes)
+        theme "default"
+
+        // Animation settings
+        animation_enabled true
+        animation_style "pulse"
+        animation_speed 50
+        animation_cycles 3
+
+        // Display options
+        show_status_bar true
+        show_border_colors true
+        show_tab_badges true
+
+        // Notification settings
+        notification_timeout_ms 300000
+        queue_max_size 100
+
+        // Accessibility
+        high_contrast false
+        reduced_motion false
+
+        // Debug mode
+        debug false
+    }
+}

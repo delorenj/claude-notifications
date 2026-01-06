@@ -1,0 +1,32 @@
+// Catppuccin theme configuration for Zellij Visual Notifications
+// A warm, cozy color palette
+
+plugins {
+    visual-notifications location="file:~/.config/zellij/plugins/zellij-visual-notifications.wasm" {
+        enabled true
+
+        // Use Catppuccin Mocha theme
+        theme "catppuccin"
+
+        // Or customize individual colors:
+        // success_color "#a6e3a1"  // Green
+        // error_color "#f38ba8"    // Red
+        // warning_color "#f9e2af"  // Yellow
+        // info_color "#89b4fa"     // Blue
+
+        // Animation settings - gentle pulse fits the cozy theme
+        animation_enabled true
+        animation_style "breathe"
+        animation_speed 40
+        animation_cycles 4
+
+        // Display options
+        show_status_bar true
+        show_border_colors true
+        show_tab_badges true
+
+        // Notification settings
+        notification_timeout_ms 300000
+        queue_max_size 100
+    }
+}

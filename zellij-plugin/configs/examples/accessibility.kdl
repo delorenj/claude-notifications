@@ -1,0 +1,31 @@
+// Accessibility-focused configuration
+// High contrast, no motion, pattern indicators
+
+plugins {
+    visual-notifications location="file:~/.config/zellij/plugins/zellij-visual-notifications.wasm" {
+        enabled true
+
+        // Use high contrast colors
+        high_contrast true
+
+        // Disable all animations for reduced motion
+        reduced_motion true
+        animation_enabled false
+
+        // Custom high-contrast colors (optional)
+        // success_color "#00ff00"
+        // error_color "#ff0000"
+        // warning_color "#ffff00"
+        // info_color "#00ffff"
+
+        // Keep all visual indicators enabled
+        show_status_bar true
+        show_border_colors true
+        show_tab_badges true
+
+        // Longer timeout for users who may need more time
+        notification_timeout_ms 600000  // 10 minutes
+
+        queue_max_size 100
+    }
+}

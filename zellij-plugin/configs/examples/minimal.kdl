@@ -1,0 +1,22 @@
+// Minimal configuration - just the essentials
+// No animations, basic functionality
+
+plugins {
+    visual-notifications location="file:~/.config/zellij/plugins/zellij-visual-notifications.wasm" {
+        enabled true
+
+        // Disable animations for minimal distraction
+        animation_enabled false
+
+        // Show only border colors (no status bar or badges)
+        show_status_bar false
+        show_border_colors true
+        show_tab_badges false
+
+        // Quick timeout - notifications clear faster
+        notification_timeout_ms 60000  // 1 minute
+
+        // Basic queue
+        queue_max_size 20
+    }
+}
