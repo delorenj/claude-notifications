@@ -1,11 +1,12 @@
 {
   "name": "@delorenj/claude-notifications",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Delightful Notification for Claude Code",
   "main": "index.js",
   "bin": {
     "claude-notifications": "./bin/claude-notifications.js",
-    "claude-notify": "./bin/claude-notify.js"
+    "claude-notify": "./bin/claude-notify.js",
+    "zellij-notify": "./bin/zellij-notify.js"
   },
   "scripts": {
     "postinstall": "node postinstall.js",

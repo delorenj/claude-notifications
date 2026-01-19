@@ -1,0 +1,34 @@
+// Zellij Layout for Testing Visual Notifications Plugin
+// Usage: zellij --layout test-notification-plugin.kdl
+
+layout {
+    default_tab_template {
+        children
+        pane size=1 borderless=true {
+            plugin location="file:/home/delorenj/.config/zellij/plugins/zellij_visual_notifications.wasm" {
+                enabled "true"
+                theme "catppuccin"
+                show_status_bar "true"
+                show_border_colors "true"
+                show_tab_badges "true"
+                animation_enabled "true"
+                animation_style "pulse"
+                animation_speed "50"
+                animation_cycles "3"
+                notification_timeout_ms "300000"
+                queue_max_size "100"
+            }
+        }
+    }
+
+    tab name="Claude Code" focus=true {
+        pane
+    }
+
+    tab name="Testing" {
+        pane split_direction="vertical" {
+            pane name="work"
+            pane name="logs"
+        }
+    }
+}

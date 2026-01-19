@@ -95,6 +95,49 @@ function triggerWebhook() {
   req.end();
 }
 
+function triggerZellijVisualization() {
+  // Check if Zellij visualization is enabled
+  if (!config.zellijVisualization || !config.zellijVisualization.enabled) {
+    return;
+  }
+
+  // Check if we're running inside a Zellij session
+  if (!process.env.ZELLIJ) {
+    return;
+  }
+
+  const {
+    pluginName,
+    notificationType,
+    title,
+    message,
+    priority
+  } = config.zellijVisualization;
+
+  // Construct the notification payload
+  const notification = {
+    type: notificationType,
+    message: message,
+    title: title,
+    source: 'claude-code',
+    priority: priority,
+    timestamp: Date.now()
+  };
+
+  const payload = JSON.stringify(notification);
+
+  try {
+    // Use zellij pipe to send notification to the plugin
+    execSync(`zellij pipe -p ${pluginName} -- '${payload}'`, {
+      stdio: 'ignore',
+      timeout: 2000  // 2 second timeout
+    });
+  } catch (error) {
+    // Silently fail - don't interrupt the notification flow
+    // User might not have the plugin installed
+  }
+}
+
 function showNotification() {
   const notifier = require('node-notifier');
   
@@ -175,7 +218,10 @@ function main() {
     showConfigInfo();
     return;
   }
-  
+
+  // Always try to trigger Zellij visualization if enabled
+  triggerZellijVisualization();
+
   if (config.webhook.enabled) {
     triggerWebhook();
     if (!config.webhook.replaceSound) {

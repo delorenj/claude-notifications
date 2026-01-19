@@ -9,12 +9,13 @@ repository = "https://github.com/delorenj/claude-notifications"
 keywords = ["zellij", "plugin", "notifications", "terminal", "wasm"]
 categories = ["command-line-utilities", "development-tools"]
 
-[lib]
-crate-type = ["cdylib"]
+[[bin]]
+name = "zellij_visual_notifications"
+path = "src/main.rs"
 
 [dependencies]
 # Zellij Plugin SDK
-zellij-tile = "0.40"
+zellij-tile = "0.43"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -30,11 +31,9 @@ chrono = { version = "0.4", default-features = false, features = ["std"] }
 log = "0.4"
 
 [profile.release]
-opt-level = "z"        # Optimize for size
-lto = true             # Link-time optimization
+lto = "fat"            # Aggressive link-time optimization
 codegen-units = 1      # Single codegen unit for better optimization
-strip = true           # Strip symbols
-panic = "abort"        # Smaller panic handler
+panic = "abort"        # Works fine in reactor mode
 
 [profile.dev]
 opt-level = 0

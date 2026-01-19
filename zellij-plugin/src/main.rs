@@ -93,6 +93,10 @@ struct LocalPaneInfo {
 
 register_plugin!(State);
 
+// Export WASM entry point that Zellij expects
+#[no_mangle]
+pub extern "C" fn _start() {}
+
 impl ZellijPlugin for State {
     fn load(&mut self, configuration: BTreeMap<String, String>) {
         // Request necessary permissions
@@ -163,7 +167,14 @@ impl ZellijPlugin for State {
                 should_render = self.handle_pane_update(pane_manifest);
             }
             Event::Key(key) => {
-                should_render = self.handle_key(key);
+                // Check for Ctrl+N to clear notifications
+                // In zellij-tile 0.42+, key handling uses KeyWithModifier
+                if let KeyWithModifier { bare_key: BareKey::Char('n'), key_modifiers } = key {
+                    if key_modifiers.contains(&KeyModifier::Ctrl) {
+                        self.clear_all_notifications();
+                        should_render = true;
+                    }
+                }
             }
             Event::CustomMessage(message, payload) => {
                 should_render = self.handle_custom_message(message, payload);
@@ -265,19 +276,6 @@ impl State {
         }
 
         true
-    }
-
-    /// Handle key events
-    fn handle_key(&mut self, key: Key) -> bool {
-        // Handle key shortcuts for plugin actions
-        match key {
-            Key::Ctrl('n') => {
-                // Clear all notifications
-                self.clear_all_notifications();
-                true
-            }
-            _ => false,
-        }
     }
 
     /// Handle custom messages (from other plugins or IPC)

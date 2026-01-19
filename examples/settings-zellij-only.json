@@ -1,0 +1,18 @@
+{
+  "sound": false,
+  "soundType": "claude-notification",
+  "desktopNotification": false,
+  "zellijVisualization": {
+    "enabled": true,
+    "pluginName": "zellij_visual_notifications",
+    "notificationType": "attention",
+    "title": "Claude Code",
+    "message": "Waiting for you...",
+    "priority": "critical"
+  },
+  "webhook": {
+    "enabled": false,
+    "url": null,
+    "replaceSound": false
+  }
+}
