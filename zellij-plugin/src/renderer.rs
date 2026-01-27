@@ -78,6 +78,10 @@ impl Renderer {
             tick,
         );
 
+        eprintln!("[DEBUG] Rendering status bar: active={}, queue={}, content_len={}",
+            active_count, queue_count, content.len());
+        eprintln!("[DEBUG] Content: {:?}", content);
+
         // Print the status bar (Zellij will capture this)
         print!("{}", content);
     }

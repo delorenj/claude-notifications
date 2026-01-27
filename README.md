@@ -222,6 +222,44 @@ Create a configuration file at `~/.config/claude-notifications/settings.json`.
 }
 ```
 
+### Remote SSH Audio (Play Sound on Your Client)
+
+If you're SSH'd into a host and want the **sound to play on your local machine**, run a lightweight listener locally and forward a port back to your SSH session.
+
+**1) On your local machine (client):**
+
+```bash
+claude-notify --listen
+```
+
+**2) Connect to the host with a reverse port forward:**
+
+```bash
+ssh -R 127.0.0.1:17777:127.0.0.1:17777 user@host
+```
+
+**3) On the host, enable remote sound via env or config:**
+
+```bash
+export CLAUDE_NOTIFY_REMOTE_PORT=17777
+```
+
+Or in `~/.config/claude-notifications/settings.json` on the host:
+
+```json
+{
+  "remoteSound": {
+    "enabled": true,
+    "port": 17777,
+    "replaceSound": false
+  }
+}
+```
+
+Now when `claude-notify` runs on the host, it will POST to the forwarded listener, and the same sound will play locally.
+
+Tip: set `replaceSound` to `true` if you want to avoid playing audio on the host.
+
 **Configuration Options:**
 
 - `sound`: (boolean) Whether to play notification sounds. Defaults to `true`.

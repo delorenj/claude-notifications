@@ -194,6 +194,8 @@ impl ZellijPlugin for State {
     }
 
     fn render(&mut self, rows: usize, cols: usize) {
+        eprintln!("[DEBUG] render() called: rows={}, cols={}, pane_states={}, queue_len={}",
+            rows, cols, self.pane_states.len(), self.notification_queue.len());
         // Render the status bar widget
         self.renderer.render_status_bar(
             rows,
@@ -207,8 +209,17 @@ impl ZellijPlugin for State {
     }
 
     fn pipe(&mut self, pipe_message: PipeMessage) -> bool {
-        // Handle piped messages from claude-notifications
-        self.handle_pipe_message(pipe_message)
+        eprintln!("[DEBUG] pipe() called - name: {:?}, payload: {:?}", pipe_message.name, pipe_message.payload);
+
+        // Only handle pipes named "notification" or empty (broadcast)
+        if !pipe_message.name.is_empty() && pipe_message.name != "notification" {
+            eprintln!("[DEBUG] Ignoring pipe with name: {}", pipe_message.name);
+            return false;
+        }
+
+        let result = self.handle_pipe_message(pipe_message);
+        eprintln!("[DEBUG] pipe() returning: {}", result);
+        result
     }
 }
 
@@ -336,11 +347,16 @@ impl State {
 
     /// Queue a notification for display
     fn queue_notification(&mut self, notification: Notification) {
+        eprintln!("[DEBUG] Queueing notification: type={:?}, message={}, pane_id={:?}",
+            notification.notification_type, notification.message, notification.pane_id);
         self.notification_queue.enqueue(notification.clone());
 
         // If targeting a specific pane, update its visual state
         if let Some(pane_id) = notification.pane_id {
+            eprintln!("[DEBUG] Updating pane {} visual state", pane_id);
             self.update_pane_visual_state(pane_id, &notification);
+        } else {
+            eprintln!("[DEBUG] No pane_id, notification queued but no visual state updated");
         }
     }
 
