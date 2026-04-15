@@ -94,10 +94,9 @@ function createSoundFile() {
     log("yellow", "⚠️  sox not found. Installing...");
     try {
       if (process.platform === "linux") {
-        execSync("sudo apt update && sudo apt install -y sox", { stdio: "inherit" });
-      } else if (process.platform === "darwin") {
-        execSync("brew install sox", { stdio: "inherit" });
-      }
+      const installHint = process.platform === "linux" ? "sudo apt install sox" : "brew install sox";
+      log("yellow", `💡 Please install 'sox' manually to enable sound generation: ${installHint}`);
+      return false;
     } catch (_installError) {
       log("red", "❌ Could not install sox. Please install it manually.");
       return false;
