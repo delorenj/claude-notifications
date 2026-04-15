@@ -18,6 +18,7 @@ uninstaller.on("close", (code) => {
   if (code !== 0) {
     console.error(`Warning: uninstall exited with code ${code}`);
     process.exitCode = code;
+    return;
   }
   console.log("👋 Thanks for using Claude Notifications!");
 });
