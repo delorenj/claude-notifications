@@ -89,7 +89,7 @@ function createSoundFile() {
   const soundFile = getSoundPath(SOUND_TYPES.HARP);
 
   try {
-    execSync("which sox", { stdio: "ignore" });
+    require("which").sync("sox");
   } catch (_err) {
     log("yellow", "⚠️  sox not found. Installing...");
     try {
