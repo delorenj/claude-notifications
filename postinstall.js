@@ -17,12 +17,15 @@ console.log("Preparing sound assets...");
 // asset under ~/.config/claude-notifications/ and causes no side effects
 // outside this package's own config dir.
 const soundsOnly = spawn(
-  "node",
+  process.execPath,
   [path.join(__dirname, "bin", "claude-notifications.js"), "sounds"],
   { stdio: "inherit" },
 );
 
-soundsOnly.on("close", () => {
+soundsOnly.on("close", (code) => {
+  if (code !== 0) {
+    console.warn(`Warning: sound generation exited with code ${code} (sox may be missing)`);
+  }
   console.log("");
   console.log("Next step — wire notification hooks into your agent CLIs:");
   console.log("");

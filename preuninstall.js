@@ -9,11 +9,15 @@ const path = require("path");
 console.log("🗑️  Cleaning up Claude Notifications...");
 
 const uninstaller = spawn(
-  "node",
+  process.execPath,
   [path.join(__dirname, "bin", "claude-notifications.js"), "uninstall", "--non-interactive"],
   { stdio: "inherit" },
 );
 
-uninstaller.on("close", () => {
+uninstaller.on("close", (code) => {
+  if (code !== 0) {
+    console.error(`Warning: uninstall exited with code ${code}`);
+    process.exitCode = code;
+  }
   console.log("👋 Thanks for using Claude Notifications!");
 });
