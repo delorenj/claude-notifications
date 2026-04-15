@@ -37,6 +37,9 @@ function playSound() {
   try {
     if (process.platform === 'linux') {
       try {
+        // Fix for PipeWire/PulseAudio suspended audio sinks
+        // Play sound twice: first play wakes up the sink, second actually produces audio
+        execSync(`paplay "${soundFile}" 2>/dev/null || true`, { stdio: 'ignore' });
         execSync(`paplay "${soundFile}"`, { stdio: 'ignore' });
       } catch (e) {
         try {
