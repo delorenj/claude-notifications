@@ -1,35 +1,38 @@
 #!/usr/bin/env node
 
+// Intentionally minimal: we no longer auto-write agent CLI hooks during
+// `npm install`. Hook installation is an explicit, user-initiated step via
+// `claude-notifications install`. This avoids surprise writes to
+// ~/.claude/settings.json (and other CLI configs) every time the package is
+// (re)installed.
+
 const { spawn } = require("child_process");
 const path = require("path");
 
-console.log("🎵 Setting up Claude Notifications...");
+console.log("🎵 Claude Notifications installed.");
+console.log("");
+console.log("Preparing sound assets...");
 
-// Run the main installer
-const installer = spawn(
-  "node",
-  [path.join(__dirname, "bin", "claude-notifications.js"), "install"],
-  {
-    stdio: "inherit",
-  },
+// Still generate sound files during npm install — that's a self-contained
+// asset under ~/.config/claude-notifications/ and causes no side effects
+// outside this package's own config dir.
+const soundsOnly = spawn(
+  process.execPath,
+  [path.join(__dirname, "bin", "claude-notifications.js"), "sounds"],
+  { stdio: "inherit" },
 );
 
-installer.on("close", (code) => {
-  if (code === 0) {
-    console.log("");
-    console.log("🎉 Claude Notifications installed successfully!");
-    console.log("");
-    console.log("Usage:");
-    console.log(
-      "  claude-notify                # Trigger notification manually",
-    );
-    console.log("  claude-notifications test    # Test the notification");
-    console.log("");
-    console.log(
-      "Claude Code will now beckon you back with a soothing scale! 🎮✨",
-    );
-  } else {
-    console.error("❌ Installation failed");
-    process.exit(code);
+soundsOnly.on("close", (code) => {
+  if (code !== 0) {
+    console.warn(`Warning: sound generation exited with code ${code} (sox may be missing)`);
   }
+  console.log("");
+  console.log("Next step — wire notification hooks into your agent CLIs:");
+  console.log("");
+  console.log("  claude-notifications install");
+  console.log("");
+  console.log("This opens an interactive selector. For scripted installs:");
+  console.log("");
+  console.log("  claude-notifications install --non-interactive --cli=claude-code");
+  console.log("");
 });

@@ -8,14 +8,17 @@ Delightful audible notifications for Claude Code. Never alt+tab back to disappoi
 
 ```bash
 npm install -g @delorenj/claude-notifications
+claude-notifications install
 ```
 
-That's it! 🎉 The package will automatically:
+Step 1 installs the CLI and generates sound assets. Step 2 opens an interactive selector that:
 
-- ✅ Install the notification system
-- 🎼 Generate a delightful notification scale
-- 🪝 Configure Claude Code stop hooks
-- 🧪 Test the installation
+- 🔎 Detects every supported agent CLI on your `$PATH` (Claude Code, Opencode, Gemini, Auggie, Copilot, Kimi, Vibe, Codex)
+- ☑️ Lets you toggle which ones should receive notification hooks
+- 🪝 Writes a marker-tagged hook block into each selected CLI's config (idempotent — re-running is safe)
+- 🚫 Shows unsupported CLIs disabled with a reason rather than silently skipping them
+
+Hook installation no longer runs automatically on `npm install` — it's an explicit, opt-in step so you stay in control of what gets written to your agent configs.
 
 ## Features
 
@@ -36,24 +39,62 @@ After installation, Claude Code will begin notifying you when it finishes or is 
 ### Manual Commands
 
 ```bash
+# Interactive hook installer (TUI)
+claude-notifications install
+
+# Scripted install for specific CLIs (skips the TUI)
+claude-notifications install --non-interactive --cli=claude-code
+
+# Preview changes without writing
+claude-notifications install --dry-run --cli=claude-code
+
+# Show which CLIs are detected and whether hooks are installed
+claude-notifications status
+claude-notifications status --json
+
+# Cleanly remove everything this package installed
+claude-notifications uninstall
+
+# Regenerate sound assets only
+claude-notifications sounds
+
 # Trigger notification manually
 claude-notify
-
-# Trigger bell notification manually
 claude-notify --bell
 
 # Test the system
 claude-notifications test
-
-# Test the bell sound
 claude-notifications test-bell
 
-# Reinstall/repair
-claude-notifications install
-
-# Get help
+# Full flag reference
 claude-notifications help
 ```
+
+### Adding support for another agent CLI
+
+Each supported CLI is a module under `lib/adapters/<id>.js` exporting this shape:
+
+```js
+{
+  id, label, binary, supportsHooks,
+  detect(deps), configPath(), install(ctx), uninstall(ctx), status(ctx)
+}
+```
+
+To add a new adapter:
+
+1. Copy `lib/adapters/claude-code.js` as a starting point (for hook-capable CLIs)
+   or `lib/adapters/_stub.js::createStubAdapter({...})` (for CLIs whose hook API
+   you haven't verified yet).
+2. Implement `install` / `uninstall` using the `upsertByMarker` / `removeByMarker`
+   helpers from `lib/adapters/index.js` so the entry is idempotent and cleanly
+   removable.
+3. Register the module by appending a `require()` line to the `adapterFactories`
+   array in `lib/adapters/index.js`.
+4. Add a test under `test/adapters/<id>.test.js` following the pattern in
+   `test/adapters/claude-code.test.js`.
+
+The TUI and status commands pick up the new adapter automatically.
 
 ### Zellij CLI
 
