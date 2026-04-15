@@ -2,7 +2,7 @@
 
 "use strict";
 
-const { execSync, execFileSync, spawn } = require("child_process");
+const { execFileSync, spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -83,30 +83,34 @@ class CliUsageError extends Error {
 
 // ---------- Sound asset generation (kept from original, trimmed comments) ----
 
+function soxInstallHint() {
+  if (process.platform === "darwin") return "brew install sox";
+  if (process.platform === "linux") return "sudo apt install sox";
+  return "install sox with your system package manager";
+}
+
+function ensureSoxAvailable() {
+  try {
+    require("which").sync("sox");
+    return true;
+  } catch (_err) {
+    log("yellow", "⚠️  sox not found.");
+    log("yellow", `💡 Please install 'sox' manually to enable sound generation: ${soxInstallHint()}`);
+    return false;
+  }
+}
+
 function createSoundFile() {
   ensureConfigDirectory();
   ensureSoundsDirectory();
   const soundFile = getSoundPath(SOUND_TYPES.HARP);
 
-  try {
-    require("which").sync("sox");
-  } catch (_err) {
-    log("yellow", "⚠️  sox not found. Installing...");
-    try {
-      if (process.platform === "linux") {
-      const installHint = process.platform === "linux" ? "sudo apt install sox" : "brew install sox";
-      log("yellow", `💡 Please install 'sox' manually to enable sound generation: ${installHint}`);
-      return false;
-    } catch (_installError) {
-      log("red", "❌ Could not install sox. Please install it manually.");
-      return false;
-    }
-  }
+  if (!ensureSoxAvailable()) return false;
 
   log("blue", "🎼 Generating a pleasant notification scale...");
-  const tempDir = path.join(os.tmpdir(), "claude-notifications");
+  let tempDir;
   try {
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "claude-notifications-"));
   } catch (error) {
     log("red", `❌ Cannot create temp directory: ${error.message}`);
     return false;
@@ -133,13 +137,13 @@ function createSoundFile() {
       noteFiles.push(noteFile);
     }
     execFileSync("sox", [...noteFiles, soundFile], { stdio: "ignore", timeout: 10000 });
-    noteFiles.forEach((f) => { if (fs.existsSync(f)) fs.unlinkSync(f); });
-    try { fs.rmdirSync(tempDir); } catch (_e) { /* non-empty is fine */ }
     log("green", "✅ Sound file created successfully!");
     return true;
   } catch (error) {
     log("red", `❌ Error creating sound file: ${error.message}`);
     return false;
+  } finally {
+    if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
@@ -147,6 +151,7 @@ function createBellSoundFile() {
   ensureConfigDirectory();
   ensureSoundsDirectory();
   const soundFile = getSoundPath(SOUND_TYPES.BELL);
+  if (!ensureSoxAvailable()) return false;
   log("blue", "🔔 Generating service desk bell sound...");
   const argv = [
     "-n", soundFile,
@@ -222,12 +227,13 @@ async function doInstall(flags) {
   for (const id of selectedIds) {
     const adapter = getAdapter(id);
     if (!adapter) {
-      results.push({ id, changed: false, reason: "unknown adapter" });
+      results.push({ id, changed: false, status: "failed", reason: "unknown adapter" });
       continue;
     }
     if (!adapter.supportsHooks) {
       results.push({
         id, changed: false,
+        status: "skipped",
         reason: adapter.unsupportedReason || "unsupported",
       });
       continue;
@@ -239,7 +245,7 @@ async function doInstall(flags) {
       });
       results.push({ id, ...res });
     } catch (err) {
-      results.push({ id, changed: false, reason: `error: ${err.message}` });
+      results.push({ id, changed: false, status: "failed", reason: err.message });
       if (!flags.keepGoing) break;
     }
   }
@@ -249,7 +255,9 @@ async function doInstall(flags) {
 
 async function doUninstall(flags) {
   const detections = await detectAll();
-  const fullUninstall = !flags.cli; // user selected everything implicitly
+  const hookCapableIds = detections
+    .filter(({ adapter }) => adapter.supportsHooks)
+    .map(({ adapter }) => adapter.id);
 
   let selectedIds;
   if (flags.cli) {
@@ -270,21 +278,37 @@ async function doUninstall(flags) {
     selectedIds = result.selectedIds;
   }
 
+  const selectedSet = new Set(selectedIds);
+  const fullUninstall =
+    !flags.cli &&
+    hookCapableIds.length > 0 &&
+    hookCapableIds.every((id) => selectedSet.has(id));
+
   // Uninstall is best-effort cleanup: a malformed config on ONE CLI must not
   // orphan hooks on the others. Always keep going here regardless of flag.
   const results = [];
   for (const id of selectedIds) {
     const adapter = getAdapter(id);
-    if (!adapter || !adapter.supportsHooks) continue;
+    if (!adapter) {
+      results.push({ id, changed: false, status: "failed", reason: "unknown adapter" });
+      continue;
+    }
+    if (!adapter.supportsHooks) {
+      results.push({
+        id,
+        changed: false,
+        status: "skipped",
+        reason: adapter.unsupportedReason || "unsupported",
+      });
+      continue;
+    }
     try {
       const res = await adapter.uninstall({ dryRun: flags.dryRun });
       results.push({ id, ...res });
     } catch (err) {
-      results.push({ id, changed: false, reason: `error: ${err.message}` });
+      results.push({ id, changed: false, status: "failed", reason: err.message });
     }
   }
-
-  reportResults(results, flags, "uninstall");
 
   // Only scrub the shared sounds directory on a FULL uninstall. Partial
   // uninstalls (--cli=X) must leave sounds alone because other CLI hooks
@@ -292,13 +316,30 @@ async function doUninstall(flags) {
   if (fullUninstall) {
     if (fs.existsSync(soundsDir)) {
       if (!flags.dryRun) fs.rmSync(soundsDir, { recursive: true, force: true });
-      log("green", `✅ ${flags.dryRun ? "would remove" : "removed"} sounds directory`);
+      const reason = `${flags.dryRun ? "would remove" : "removed"} sounds directory`;
+      if (flags.json) {
+        results.push({ id: "shared-sounds", changed: true, status: "ok", reason });
+      } else {
+        log("green", `✅ ${reason}`);
+      }
     }
     try {
       const { cleanupLegacySoundFiles } = require("../lib/config");
-      if (!flags.dryRun) cleanupLegacySoundFiles();
+      const cleanedCount = flags.dryRun
+        ? 0
+        : cleanupLegacySoundFiles({ quiet: flags.json });
+      if (flags.json && cleanedCount > 0) {
+        results.push({
+          id: "legacy-sounds",
+          changed: true,
+          status: "ok",
+          reason: `cleaned ${cleanedCount} legacy sound file(s)`,
+        });
+      }
     } catch (_e) { /* optional */ }
   }
+
+  reportResults(results, flags, "uninstall");
 }
 
 async function doStatus(flags) {
@@ -345,27 +386,30 @@ async function doStatus(flags) {
 }
 
 function reportResults(results, flags, verb) {
-  if (flags.json) {
-    console.log(JSON.stringify({ [verb]: results }, null, 2));
-    return;
-  }
   let ok = 0; let skipped = 0; let failed = 0;
   const touched = []; // ids that actually changed (for the `installed:` line)
   for (const r of results) {
-    if (r.changed) {
-      log("green", `  ✓ ${r.id}: ${r.reason || "done"}`);
+    const status = r.status || (r.changed ? "ok" : "skipped");
+    if (status === "failed") {
+      if (!flags.json) log("red", `  ✗ ${r.id}: ${r.reason || "failed"}`);
+      failed += 1;
+    } else if (r.changed) {
+      if (!flags.json) log("green", `  ✓ ${r.id}: ${r.reason || "done"}`);
       touched.push(r.id);
       ok += 1;
     } else if (r.alreadyInstalled) {
-      log("dim", `  · ${r.id}: already installed`);
+      if (!flags.json) log("dim", `  · ${r.id}: already installed`);
       skipped += 1;
-    } else if (r.reason && /error/i.test(r.reason)) {
-      log("red", `  ✗ ${r.id}: ${r.reason}`);
-      failed += 1;
     } else {
-      log("dim", `  · ${r.id}: ${r.reason || "no change"}`);
+      if (!flags.json) log("dim", `  · ${r.id}: ${r.reason || "no change"}`);
       skipped += 1;
     }
+  }
+  const summary = { changed: ok, skipped, failed, dryRun: Boolean(flags.dryRun) };
+  if (flags.json) {
+    console.log(JSON.stringify({ [verb]: results, summary }, null, 2));
+    if (failed > 0) process.exitCode = 2;
+    return;
   }
   console.log("");
   log("blue", `Summary: ${ok} changed, ${skipped} skipped, ${failed} failed${flags.dryRun ? " (dry-run)" : ""}`);

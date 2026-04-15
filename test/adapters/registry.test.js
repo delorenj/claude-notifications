@@ -7,9 +7,11 @@ const {
   makeMarker,
   upsertByMarker,
   removeByMarker,
+  writeJson,
   getAdapters,
   getAdapter,
 } = require("../../lib/adapters");
+const { createFakeFs } = require("../helpers/fake-fs");
 
 test("makeMarker embeds source and version", () => {
   const m = makeMarker({ foo: "bar" });
@@ -62,6 +64,16 @@ test("removeByMarker strips only our entries", () => {
   assert.equal(res.removed, 2);
   assert.equal(arr.length, 2);
   assert.ok(arr.every((e) => e.source !== MARKER_SOURCE));
+});
+
+test("writeJson commits through an atomic rename", () => {
+  const fs = createFakeFs();
+  const serialized = writeJson("/tmp/config/settings.json", { hello: "world" }, { deps: { fs } });
+  const files = fs._dump();
+
+  assert.equal(fs.readFileSync("/tmp/config/settings.json"), serialized);
+  assert.deepEqual(JSON.parse(files["/tmp/config/settings.json"]), { hello: "world" });
+  assert.ok(!Object.keys(files).some((p) => p.includes(".tmp-")));
 });
 
 test("registry exposes all expected adapters", () => {

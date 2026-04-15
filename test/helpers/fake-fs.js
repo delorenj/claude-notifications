@@ -42,6 +42,16 @@ function createFakeFs(initial = {}) {
     readdirSync() { return []; },
     rmdirSync() {},
     unlinkSync(p) { files.delete(p); },
+    renameSync(oldPath, newPath) {
+      if (!files.has(oldPath)) {
+        const err = new Error(`ENOENT: ${oldPath}`);
+        err.code = "ENOENT";
+        throw err;
+      }
+      files.set(newPath, files.get(oldPath));
+      files.delete(oldPath);
+      ensureDirFromFile(newPath);
+    },
     _dump() { return Object.fromEntries(files); },
   };
 }
