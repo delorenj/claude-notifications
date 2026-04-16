@@ -65,6 +65,17 @@ test("install --json emits clean JSON on success", () => {
   assert.equal(payload.install[0].status, "ok");
 });
 
+test("install --json supports opencode hooks", () => {
+  const result = runCli(["install", "--non-interactive", "--cli=opencode", "--json"]);
+
+  assert.equal(result.status, 0);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.summary.changed, 1);
+  assert.equal(payload.summary.failed, 0);
+  assert.equal(payload.install[0].id, "opencode");
+  assert.equal(payload.install[0].status, "ok");
+});
+
 test("uninstall --json keeps shared cleanup inside JSON payload", () => {
   const result = runCli(["uninstall", "--non-interactive", "--json"], (home) => {
     const soundsDir = path.join(home, ".config", "claude-notifications", "sounds");

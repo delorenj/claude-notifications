@@ -34,7 +34,8 @@ Hook installation no longer runs automatically on `npm install` — it's an expl
 
 ## Usage
 
-After installation, Claude Code will begin notifying you when it finishes or is waiting on your response.
+After installation, Claude Code and OpenCode can notify you when they finish or
+need your response.
 
 ### Manual Commands
 
@@ -43,10 +44,10 @@ After installation, Claude Code will begin notifying you when it finishes or is 
 claude-notifications install
 
 # Scripted install for specific CLIs (skips the TUI)
-claude-notifications install --non-interactive --cli=claude-code
+claude-notifications install --non-interactive --cli=claude-code,opencode
 
 # Preview changes without writing
-claude-notifications install --dry-run --cli=claude-code
+claude-notifications install --dry-run --cli=opencode
 
 # Show which CLIs are detected and whether hooks are installed
 claude-notifications status
@@ -86,9 +87,10 @@ To add a new adapter:
 1. Copy `lib/adapters/claude-code.js` as a starting point (for hook-capable CLIs)
    or `lib/adapters/_stub.js::createStubAdapter({...})` (for CLIs whose hook API
    you haven't verified yet).
-2. Implement `install` / `uninstall` using the `upsertByMarker` / `removeByMarker`
-   helpers from `lib/adapters/index.js` so the entry is idempotent and cleanly
-   removable.
+2. Implement `install` / `uninstall` with the shared marker protocol. Use
+   `upsertByMarker` / `removeByMarker` for array-shaped config entries, or
+   embed `source: "claude-notifications"` in managed files so the entry is
+   idempotent and cleanly removable.
 3. Register the module by appending a `require()` line to the `adapterFactories`
    array in `lib/adapters/index.js`.
 4. Add a test under `test/adapters/<id>.test.js` following the pattern in
@@ -131,8 +133,8 @@ See [ZELLIJ-NOTIFY.md](./ZELLIJ-NOTIFY.md) for complete CLI documentation.
 
 The package automatically:
 
-1. **Detects Claude Code** - Finds your Claude Code configuration
-2. **Adds Stop Hook** - Configures the notification trigger
+1. **Detects supported CLIs** - Finds Claude Code, OpenCode, and other agent CLIs
+2. **Adds hooks** - Configures the notification trigger for each supported CLI
 3. **Creates Sound** - Generates the sound using `sox`
 4. **Sets Up Commands** - Installs `claude-notify` globally
 
@@ -157,6 +159,24 @@ The installer automatically adds this to your Claude Code settings:
   }
 }
 ```
+
+### OpenCode Integration
+
+The installer writes a managed global plugin at
+`~/.config/opencode/plugins/claude-notifications.js`. The plugin listens for
+OpenCode session and permission events, then runs `claude-notify`:
+
+```js
+export const ClaudeNotifications = async () => ({
+  event: async ({ event }) => {
+    if (event && EVENT_TYPES.has(event.type)) runNotification();
+  },
+});
+```
+
+Uninstall removes this plugin only when it contains the
+`claude-notifications` marker. Existing plugin files without that marker are
+left untouched.
 
 ## Requirements
 

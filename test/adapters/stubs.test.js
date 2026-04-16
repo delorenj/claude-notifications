@@ -4,7 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getAdapter, getAdapters } = require("../../lib/adapters");
 
-const UNSUPPORTED_IDS = ["opencode", "gemini", "auggie", "copilot", "kimi", "vibe", "codex"];
+const UNSUPPORTED_IDS = ["gemini", "auggie", "copilot", "kimi", "vibe", "codex"];
 
 for (const id of UNSUPPORTED_IDS) {
   test(`stub adapter "${id}" has supportsHooks=false and a reason`, () => {
