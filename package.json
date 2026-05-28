@@ -5,8 +5,7 @@
   "main": "index.js",
   "bin": {
     "claude-notifications": "./bin/claude-notifications.js",
-    "claude-notify": "./bin/claude-notify.js",
-    "zellij-notify": "./bin/zellij-notify.js"
+    "claude-notify": "./bin/claude-notify.js"
   },
   "scripts": {
     "postinstall": "node postinstall.js",

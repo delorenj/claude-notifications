@@ -26,10 +26,8 @@ Hook installation no longer runs automatically on `npm install` — it's an expl
 - 🔔 **Service Desk Bell** - Optional short, crisp bell sound for a quick "done!" signal
 - 🔊 **Cross-Platform Audio** - Works on Linux and macOS
 - 🖥️ **Desktop Notifications** - Visual notifications with Claude Code branding (optional)
-- 🎨 **Zellij Visual Notifications** - Beautiful animated pane borders and status bar notifications
 - 🪝 **Auto-Integration** - Automatically configures Claude Code hooks
 - ⚡ **Zero Configuration** - Works out of the box
-- 🌐 **Webhook Support** - Trigger a webhook in addition to or instead of the sound
 - 🎨 **Customizable** - Easy to modify sounds and settings
 
 ## Usage
@@ -97,32 +95,6 @@ To add a new adapter:
    `test/adapters/claude-code.test.js`.
 
 The TUI and status commands pick up the new adapter automatically.
-
-### Zellij CLI
-
-The package also includes `zellij-notify` for programmatic control:
-
-```bash
-# Send notification to current tab
-zellij-notify "Build complete!"
-
-# Send to specific tab by index
-zellij-notify -i 2 "Backend tests passed"
-
-# Quick 5-second notification
-zellij-notify -q "Deployment started"
-
-# Dismissable alert (requires Ctrl+N to clear)
-zellij-notify -d -t error "Review required"
-
-# Broadcast to all tabs
-zellij-notify -a "System maintenance in 5 minutes"
-
-# Full help
-zellij-notify --help
-```
-
-See [ZELLIJ-NOTIFY.md](./ZELLIJ-NOTIFY.md) for complete CLI documentation.
 
 ## The Sound
 
@@ -205,68 +177,9 @@ ls ~/.local/share/sounds/claude-notification.wav
 cp your-custom-sound.wav ~/.local/share/sounds/claude-notification.wav
 ```
 
-### Zellij Visual Notifications
+### Configuration
 
-If you're using [Zellij](https://zellij.dev/) as your terminal multiplexer, `claude-notifications` can send visual notifications directly to your Zellij panes with animated borders, status bar indicators, and tab badges.
-
-**Setup:**
-
-1. **Install the Zellij plugin:**
-   ```bash
-   # The plugin should be installed at:
-   ~/.config/zellij/plugins/zellij_visual_notifications.wasm
-   ```
-
-2. **Add to your Zellij layout:**
-   ```kdl
-   layout {
-       pane
-       pane size=1 {
-           plugin location="file:~/.config/zellij/plugins/zellij_visual_notifications.wasm" {
-               enabled true
-               theme "catppuccin"  // or dracula, nord, tokyo-night, etc.
-               show_status_bar true
-               show_border_colors true
-               animation_enabled true
-           }
-       }
-   }
-   ```
-
-3. **Configure in settings.json:**
-   ```json
-   {
-     "zellijVisualization": {
-       "enabled": true,
-       "pluginName": "zellij_visual_notifications",
-       "notificationType": "attention",
-       "title": "Claude Code",
-       "message": "Waiting for you...",
-       "priority": "high"
-     }
-   }
-   ```
-
-**Visual Features:**
-- 🎨 **Animated Pane Borders** - Pulsing colors based on notification type
-- 📊 **Status Bar Widget** - Shows active notifications with icons
-- 🏷️ **Tab Badges** - Visual indicators on tabs with active notifications
-- ⌨️ **Keyboard Control** - Press `Ctrl+N` to clear notifications
-- 🎭 **10+ Themes** - Catppuccin, Dracula, Nord, Tokyo Night, and more
-- ♿ **Accessibility** - Pattern-based indicators for color-blind users
-
-**Notification Types:**
-- ✅ `success` - Green pulsing border (build passed, tests succeeded)
-- ❌ `error` - Red pulsing border (build failed, errors found)
-- ⚠️ `warning` - Yellow pulsing border (warnings, deprecated APIs)
-- ℹ️ `info` - Blue pulsing border (general information)
-- 👁️ `attention` - Purple pulsing border (Claude waiting for input)
-
-### Configure Webhooks
-
-You can configure a webhook to be triggered when a notification occurs. This is useful for integrating with other services, such as IFTTT, Zapier, or a custom server.
-
-Create a configuration file at `~/.config/claude-notifications/settings.json`.
+Create a configuration file at `~/.config/claude-notifications/settings.json` to customize behavior.
 
 **Example `settings.json`:**
 
@@ -274,12 +187,7 @@ Create a configuration file at `~/.config/claude-notifications/settings.json`.
 {
   "sound": true,
   "soundType": "claude-notification",
-  "desktopNotification": false,
-  "webhook": {
-    "enabled": true,
-    "url": "https://maker.ifttt.com/trigger/claude_notification/with/key/YOUR_KEY",
-    "replaceSound": false
-  }
+  "desktopNotification": false
 }
 ```
 
@@ -290,23 +198,6 @@ Create a configuration file at `~/.config/claude-notifications/settings.json`.
   - `"claude-notification"` - Final Fantasy dream harp (default)
   - `"claude-notification-bell"` - Service desk bell
 - `desktopNotification`: (boolean) Whether to show desktop notification banners. Defaults to `false`.
-- `zellijVisualization.enabled`: (boolean) Whether to send visual notifications to Zellij. Defaults to `true` when inside Zellij.
-- `zellijVisualization.pluginName`: (string) Name of the Zellij plugin to send notifications to. Defaults to `"zellij_visual_notifications"`.
-- `zellijVisualization.notificationType`: (string) Type of notification to send. Options: `success`, `error`, `warning`, `info`, `attention`, `progress`. Defaults to `"attention"`.
-- `zellijVisualization.title`: (string) Notification title. Defaults to `"Claude Code"`.
-- `zellijVisualization.message`: (string) Notification message. Defaults to `"Waiting for you..."`.
-- `zellijVisualization.priority`: (string) Notification priority. Options: `low`, `normal`, `high`, `critical`. Defaults to `"high"`.
-- `webhook.enabled`: (boolean) Whether to trigger the webhook. Defaults to `false`.
-- `webhook.url`: (string) The URL to send the POST request to.
-- `webhook.replaceSound`: (boolean) If `true`, the sound will not play when a webhook is triggered. Defaults to `false`.
-
-The webhook will be sent as a `POST` request with a JSON payload:
-
-```json
-{
-  "message": "Claude is waiting for you..."
-}
-```
 
 ### Sound Files
 
