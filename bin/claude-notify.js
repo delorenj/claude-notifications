@@ -9,11 +9,20 @@ const https = require('https');
 const { getConfig, getSoundPath, SOUND_TYPES } = require('../lib/config');
 
 const config = getConfig();
+const DEFAULT_WEBHOOK_TIMEOUT_MS = 1500;
 
 // Check for command line arguments
 const args = process.argv.slice(2);
 const useBell = args.includes('--bell') || args.includes('-b');
 const showConfig = args.includes('-c') || args.includes('--config');
+const AUDIO_COMMAND_TIMEOUT_MS = 800;
+
+function execAudioCommand(command) {
+  execSync(command, {
+    stdio: 'ignore',
+    timeout: AUDIO_COMMAND_TIMEOUT_MS
+  });
+}
 
 function playSound() {
   if (!config.sound) {
@@ -39,14 +48,14 @@ function playSound() {
       try {
         // Fix for PipeWire/PulseAudio suspended audio sinks
         // Play sound twice: first play wakes up the sink, second actually produces audio
-        execSync(`paplay "${soundFile}" 2>/dev/null || true`, { stdio: 'ignore' });
-        execSync(`paplay "${soundFile}"`, { stdio: 'ignore' });
+        execAudioCommand(`paplay "${soundFile}" 2>/dev/null || true`);
+        execAudioCommand(`paplay "${soundFile}"`);
       } catch (e) {
         try {
-          execSync(`aplay "${soundFile}"`, { stdio: 'ignore' });
+          execAudioCommand(`aplay "${soundFile}"`);
         } catch (e2) {
           try {
-            execSync(`play "${soundFile}"`, { stdio: 'ignore' });
+            execAudioCommand(`play "${soundFile}"`);
           } catch (e3) {
             process.stdout.write('\x07');
           }
@@ -54,7 +63,7 @@ function playSound() {
       }
     } else if (process.platform === 'darwin') {
       try {
-        execSync(`afplay "${soundFile}"`, { stdio: 'ignore' });
+        execAudioCommand(`afplay "${soundFile}"`);
       } catch (e) {
         process.stdout.write('\x07');
       }
@@ -72,30 +81,125 @@ function triggerWebhook() {
   }
 
   const { url } = config.webhook;
-  const data = JSON.stringify({ message: 'Claude is waiting for you...' });
-
+  const format = (config.webhook.format || 'json').toLowerCase();
+  const timeoutMs = getWebhookTimeoutMs(config.webhook.timeoutMs);
   const protocol = url.startsWith('https') ? https : http;
+
+  let data;
+  let headers;
+
+  if (format === 'ntfy') {
+    // ntfy native HTTP publish: POST plain-text body to https://server/<topic>.
+    // Headers are passed unprefixed (Title, Priority, Tags). ntfy accepts both
+    // the unprefixed and X-* forms. See https://docs.ntfy.sh/publish/
+    const body = (typeof config.webhook.body === 'string' && config.webhook.body.length > 0)
+      ? config.webhook.body
+      : 'Claude is waiting for you...';
+    data = Buffer.from(body, 'utf8');
+    headers = {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Content-Length': data.length
+    };
+    if (config.webhook.headers && typeof config.webhook.headers === 'object') {
+      for (const [k, v] of Object.entries(config.webhook.headers)) {
+        if (v === null || v === undefined) continue;
+        headers[k] = String(v);
+      }
+    }
+  } else {
+    // Backwards-compatible JSON path. Unchanged behavior.
+    data = JSON.stringify({ message: 'Claude is waiting for you...' });
+    headers = {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(data)
+    };
+  }
 
   const options = {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': data.length
+    headers
+  };
+
+  let req;
+  let timeoutHandle;
+  let requestDone = false;
+  let timeoutTriggered = false;
+
+  const cleanup = () => {
+    requestDone = true;
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
     }
   };
 
-  const req = protocol.request(url, options, (res) => {
-    // We don't really care about the response, but it's good practice to handle it
-    res.on('data', () => {});
-    res.on('end', () => {});
-  });
+  const abortForTimeout = () => {
+    if (requestDone || timeoutTriggered) {
+      return;
+    }
+    timeoutTriggered = true;
+    const timeoutError = new Error(`timed out after ${timeoutMs}ms`);
+    timeoutError.code = 'ETIMEDOUT';
+    req.destroy(timeoutError);
+  };
+
+  try {
+    req = protocol.request(url, options, (res) => {
+      // We don't really care about the response, but draining it lets Node exit.
+      res.on('end', cleanup);
+      res.on('close', cleanup);
+      res.resume();
+    });
+  } catch (error) {
+    console.error('Error triggering webhook:', formatWebhookError(error));
+    return;
+  }
+
+  timeoutHandle = setTimeout(abortForTimeout, timeoutMs);
+  if (typeof timeoutHandle.unref === 'function') {
+    timeoutHandle.unref();
+  }
+  if (typeof req.setTimeout === 'function') {
+    req.setTimeout(timeoutMs, abortForTimeout);
+  }
 
   req.on('error', (error) => {
-    console.error('Error triggering webhook:', error);
+    cleanup();
+    console.error('Error triggering webhook:', formatWebhookError(error));
   });
+  req.on('close', cleanup);
 
-  req.write(data);
-  req.end();
+  try {
+    req.write(data);
+    req.end();
+  } catch (error) {
+    cleanup();
+    if (typeof req.destroy === 'function') {
+      req.destroy();
+    }
+    console.error('Error triggering webhook:', formatWebhookError(error));
+  }
+}
+
+function getWebhookTimeoutMs(value) {
+  const timeoutMs = Number(value);
+  if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+    return timeoutMs;
+  }
+  return DEFAULT_WEBHOOK_TIMEOUT_MS;
+}
+
+function formatWebhookError(error) {
+  if (!error) {
+    return 'unknown error';
+  }
+  if (error.code === 'ETIMEDOUT') {
+    return error.message || 'timed out';
+  }
+  if (error.code && error.message) {
+    return `${error.code}: ${error.message}`;
+  }
+  return error.message || String(error);
 }
 
 function triggerZellijVisualization() {
@@ -226,10 +330,13 @@ function main() {
   triggerZellijVisualization();
 
   if (config.webhook.enabled) {
-    triggerWebhook();
     if (!config.webhook.replaceSound) {
+      // Audio playback is synchronous; if it runs after opening the HTTP
+      // request, it can block Node's event loop long enough for our own
+      // webhook timeout to fire before the socket gets serviced.
       playSound();
     }
+    triggerWebhook();
   } else {
     playSound();
     if (config.desktopNotification) {
