@@ -1,6 +1,6 @@
 {
   "name": "@delorenj/claude-notifications",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Delightful Notification for Claude Code",
   "main": "index.js",
   "bin": {
