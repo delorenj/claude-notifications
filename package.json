@@ -1,6 +1,6 @@
 {
   "name": "@delorenj/claude-notifications",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Delightful Notification for Claude Code",
   "main": "index.js",
   "bin": {
@@ -45,5 +45,8 @@
     "node-notifier": "^10.0.1",
     "which": "^4.0.0"
   },
-  "preferGlobal": true
+  "preferGlobal": true,
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
 }
