@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { execSync } = require("child_process");
+const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
@@ -12,13 +12,36 @@ const config = getConfig();
 const args = process.argv.slice(2);
 const useBell = args.includes("--bell") || args.includes("-b");
 const showConfig = args.includes("-c") || args.includes("--config");
-const AUDIO_COMMAND_TIMEOUT_MS = 800;
+// Every player is bounded. SoX `play` through pipewire-alsa can hang in drain
+// (futex_do_wait) forever, holding an uncorked sink-input that keeps the sink
+// RUNNING; as a fallback it leaked processes for days. So: no SoX, no shell,
+// and each player is SIGKILLed by Node itself when it overruns. The bell is
+// ~1.6s, so a player still alive at AUDIO_PLAYER_TIMEOUT_MS is wedged.
+const AUDIO_PLAYER_TIMEOUT_MS = 3000;
+const AUDIO_TOTAL_BUDGET_MS = 4000;
+const LINUX_PLAYERS = ["pw-play", "paplay", "aplay"];
 
-function execAudioCommand(command) {
-  execSync(command, {
-    stdio: "ignore",
-    timeout: AUDIO_COMMAND_TIMEOUT_MS,
-  });
+/**
+ * Play a sound file with the first player that works, never waiting longer than
+ * the total budget. Returns true if a player exited 0. A player that times out
+ * stops the chain: a wedged audio server would wedge the fallbacks too.
+ */
+function playBounded(soundFile, players = LINUX_PLAYERS, opts = {}) {
+  const perPlayer = opts.perPlayerMs || AUDIO_PLAYER_TIMEOUT_MS;
+  const deadline = Date.now() + (opts.totalMs || AUDIO_TOTAL_BUDGET_MS);
+  for (const player of players) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return false;
+    const r = spawnSync(player, [soundFile], {
+      stdio: "ignore",
+      timeout: Math.min(perPlayer, remaining),
+      killSignal: "SIGKILL",
+    });
+    if (r.status === 0) return true;
+    if (r.error && r.error.code === "ETIMEDOUT") return false;
+    // ENOENT or non-zero exit: try the next player.
+  }
+  return false;
 }
 
 function playSound() {
@@ -41,29 +64,13 @@ function playSound() {
   }
 
   try {
+    let played = false;
     if (process.platform === "linux") {
-      try {
-        execAudioCommand(`paplay "${soundFile}"`);
-      } catch (e) {
-        try {
-          execAudioCommand(`aplay "${soundFile}"`);
-        } catch (e2) {
-          try {
-            execAudioCommand(`play "${soundFile}"`);
-          } catch (e3) {
-            process.stdout.write("\x07");
-          }
-        }
-      }
+      played = playBounded(soundFile);
     } else if (process.platform === "darwin") {
-      try {
-        execAudioCommand(`afplay "${soundFile}"`);
-      } catch (e) {
-        process.stdout.write("\x07");
-      }
-    } else {
-      process.stdout.write("\x07");
+      played = playBounded(soundFile, ["afplay"]);
     }
+    if (!played) process.stdout.write("\x07");
   } catch (error) {
     process.stdout.write("\x07");
   }
@@ -173,3 +180,5 @@ function main() {
 if (require.main === module) {
   main();
 }
+
+module.exports = { playBounded, LINUX_PLAYERS };
