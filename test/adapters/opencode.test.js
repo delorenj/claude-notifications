@@ -14,6 +14,7 @@ function makeDeps(files = {}, extra = {}) {
   return {
     fs: createFakeFs(files),
     homedir: () => HOME,
+    env: {},
     which: async () => `${HOME}/.local/bin/opencode`,
     ...extra,
   };
